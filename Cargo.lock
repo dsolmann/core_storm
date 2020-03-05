@@ -43,6 +43,8 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "crossbeam-channel",
+ "crossbeam-queue",
+ "crossbeam-utils",
  "serde",
  "twox-hash",
  "uuid",
@@ -56,6 +58,16 @@ checksum = "cced8691919c02aac3cb0a1bc2e9b73d89e832bf9a06fc579d4e71b68a2da061"
 dependencies = [
  "crossbeam-utils",
  "maybe-uninit",
+]
+
+[[package]]
+name = "crossbeam-queue"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c695eeca1e7173472a32221542ae469b3e9aac3a4fc81f7696bcad82029493db"
+dependencies = [
+ "cfg-if",
+ "crossbeam-utils",
 ]
 
 [[package]]

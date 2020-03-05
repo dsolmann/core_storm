@@ -2,105 +2,26 @@ use bincode;
 use std::thread;
 use std::option;
 use std::hash::{Hash, Hasher};
-use serde::{Serialize, Deserialize};
-use crossbeam_channel::{unbounded, Sender, Receiver, TryRecvError};
+use std::sync::Arc;
+
+use crossbeam_queue::{PopError, SegQueue};
+
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::thread::sleep;
 use std::time::Duration;
 use std::error::Error;
+
+mod transports;
+mod meta_message;
+mod middlewares;
+mod protocol;
+
+use crate::protocol::{Message, Addr, UpperProto, MsgType};
 use uuid::Uuid;
-
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, Copy)]
-struct Addr (u16, u16, u16, u16);
-
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, Copy)]
-enum UpperProto {
-    OneWay,
-    ConnProto,
-    RelSavNet,
-    MetaProto
-}
-
-
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
-struct MetaMessage {
-    m_type: MetaMethods,
-    payload: Vec<u8>
-}
-impl MetaMessage {
-    pub fn encode(&self) -> Vec<u8> {
-        bincode::serialize(&self).unwrap()
-    }
-    pub fn from_vec_u8(data: &Vec<u8>) -> MetaMessage {
-        bincode::deserialize(data).unwrap()
-    }
-
-    pub fn ping() -> MetaMessage {
-        MetaMessage {
-            m_type: MetaMethods::Ping,
-            payload: vec![]
-        }
-    }
-}
-
-
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, Copy)]
-enum MetaMethods {
-    Ping,
-    GetTime,
-    NeighbourSearch,
-    AprDistance,
-    TraceRoute
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, Copy)]
-enum MsgType {
-    Broadcast,
-    RadiusBroadcast,
-    UnicastL
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
-struct Message {
-    sender: Option<Addr>,
-    radius: Option<u16>,
-    ttl: u16,
-    data: Vec<u8>,
-    u_proto: UpperProto,
-    msg_type: MsgType,
-    to: Addr,
-    hash: u64,
-    id: Uuid
-}
-
-impl Message {
-    fn hash_it(hashable: Vec<u8>) -> u64{
-        let mut hasher = DefaultHasher::new();
-        hashable.hash(&mut hasher);
-        hasher.finish()
-    }
-    pub fn make_bc_message(data: Vec<u8>, proto: UpperProto) -> Message {
-        // let data =  bincode::serialize("Test Data to Transfer; Hello, world!").unwrap();
-        Message {
-            sender: None,
-            radius: None,
-            u_proto: proto,
-            ttl: 256,
-            msg_type: MsgType::Broadcast,
-            data: data.clone(),
-            to: Addr(0, 0, 0, 0),
-            hash: Message::hash_it(data.clone()),
-            id: Uuid::new_v4()
-        }
-    }
-    pub fn encode(&self) -> Vec<u8> {
-        bincode::serialize(&self).unwrap()
-    }
-    pub fn from_vec_u8(data: &Vec<u8>) -> Message {
-        bincode::deserialize(data).unwrap()
-    }
-}
+use crate::meta_message::MetaMessage;
+use crate::transports::{sample_transport};
+use crate::middlewares::{direct_middleware};
 
 #[derive(Clone)]
 struct InDispatcher {
@@ -121,14 +42,15 @@ impl InDispatcher {
     pub fn register_callback(&mut self, proto:UpperProto, func: fn(&Message)) {
         self.registered_callbacks.insert(proto, func);
     }
-    pub fn dispatch(&mut self, receiver: &Receiver<Message>) {
+    pub fn dispatch(&mut self, input_queue: &SegQueue<Message>) {
         loop {
             // println!("{:#?}", receiver);
-            if receiver.is_empty() {
-                continue
+            let mut msg = match input_queue.pop() {
+                Ok(Message) => Message,
+                _ => {
+                    continue
+                }
             };
-
-            let mut msg = receiver.recv().unwrap();
             let m_id = &msg.id;
             self.counter += 1;
             msg.ttl -= 1;
@@ -151,38 +73,43 @@ impl InDispatcher {
 }
 
 fn main() {
+    let input_middleware_q: Arc<SegQueue<Message>> = Arc::new(SegQueue::new());
+    let input_dispatcher_q: Arc<SegQueue<Message>> = Arc::new(SegQueue::new());
+
+    // let output_middleware_q = SegQueue::new();
+    // let output_dispatcher_q = SegQueue::new();
+
     let mut in_dispatcher = InDispatcher::new();
-    let (sender, receiver) = unbounded();
-    thread::spawn(move || {
-        loop {
-            let d = MetaMessage::ping().encode();
-            sender.send(Message {
-                sender: Option::from(Addr(0xDE, 0xAD, 0xBE, 0xEF)),
-                radius: None,
-                u_proto: UpperProto::MetaProto,
-                ttl: 64,
-                id: Uuid::new_v4(),
-                msg_type: MsgType::UnicastL,
-                data: d.clone(),
-                to: Addr(0xDE, 0xAD, 0xBE, 0xEF),
-                hash: Message::hash_it(d.clone())
-            }).unwrap_or_else(|e| println!("{:#?}", e.to_string()));
-            sleep(Duration::from_secs_f32(0.1));
-            println!("SNT");
-        }
-    });
 
     in_dispatcher.register_callback(
         UpperProto::MetaProto,
         |message| {
-            println!("RCVD");
+            // println!("RCVD");
         }
     );
 
-    for i in 0..4 {
-        let mut d_2 = in_dispatcher.clone();
-        let r = receiver.clone();
-        thread::spawn(move || d_2.dispatch(&r));
+    for _ in 0..8 {
+        let mut d = in_dispatcher.clone();
+        let dis_q= Arc::clone(&input_dispatcher_q);
+        thread::spawn( move || d.dispatch(&dis_q));
+    }
+
+    for _ in 0..8 {
+        let i_m_q = Arc::clone(&input_middleware_q);
+        let i_d_q = Arc::clone(&input_dispatcher_q);
+        thread::spawn(
+            move || direct_middleware(
+                &i_m_q,
+                &i_d_q
+            )
+        ); // Attach I_MW_Q to I_Q
+    }
+
+    for _ in 0..8 {
+        let i_m_q = Arc::clone(&input_middleware_q);
+        thread::spawn(
+            move || sample_transport(&i_m_q)
+        ); // Start SMP Transport
     }
 
     loop {}
