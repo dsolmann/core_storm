@@ -4,6 +4,7 @@ use std::hash::{Hash, Hasher};
 use std::option;
 use std::sync::Arc;
 use std::thread;
+use log::{debug, error, info, trace, warn};
 
 use crate::dispatcher::InDispatcher;
 use crate::middlewares::direct_middleware;
@@ -41,19 +42,23 @@ impl CoreStorm {
 
     pub fn set_input_middleware(&mut self, func: fn(&ArrayQueue<Message>, &ArrayQueue<Message>)) {
         self.pre_in_middleware = func;
+        info!("Input middleware set.")
     }
 
     pub fn set_output_middleware(&mut self, func: fn(&ArrayQueue<Message>, &ArrayQueue<Message>)) {
         self.pre_out_middleware = func;
+        info!("Output middleware set.")
     }
 
     pub fn start(&mut self) {
+        info!("Starting CoreStorm's instance.");
         for _ in 0..self.max_workers_per_iproc {
             // Initializing Output Middleware
             let o_m_q = Arc::clone(&self.output_middleware_queue);
             let o_d_q = Arc::clone(&self.output_queue);
             let mw_func = self.pre_out_middleware;
             thread::spawn(move || mw_func(&o_m_q, &o_d_q));
+            info!("Intermediate output queue connected to final queue.");
 
             // Initializing Input Dispatcher
             let mut d = self.in_dispatcher.clone();
@@ -61,12 +66,14 @@ impl CoreStorm {
             let out_mw_q = Arc::clone(&self.output_middleware_queue);
 
             thread::spawn(move || d.dispatch(&inp_dis_q, &out_mw_q));
+            info!("in_dispatcher connected to intermediate output queue.");
 
             // Initializing Input Middleware
             let i_m_q = Arc::clone(&self.input_queue);
             let i_d_q = Arc::clone(&self.input_dispatcher_queue);
             let mw_func = self.pre_in_middleware;
             thread::spawn(move || mw_func(&i_m_q, &i_d_q));
+            info!("Input Queue connected to in_dispatcher input queue.");
         }
     }
 
@@ -75,6 +82,12 @@ impl CoreStorm {
     }
 
     pub fn register_handler(&mut self, protocol: UpperProto, handler_func: fn(&Message)) {
-        self.in_dispatcher.register_callback(protocol, handler_func)
+        self.in_dispatcher.register_callback(protocol, handler_func);
+        info!("Assigned handler to {}.", protocol);
+    }
+
+    pub fn accept_message(&mut self, msg: Message) {
+        self.input_queue.push(msg).unwrap();
+        debug!("Message received.")
     }
 }

@@ -42,7 +42,6 @@ impl InDispatcher {
             let m_id = &msg.id;
             self.counter += 1;
             msg.ttl -= 1;
-            println!("{}", &self.counter);
             if !self.passed_pkt.contains(*&m_id)
                 & ((self.addr == msg.to) | (Addr(0, 0, 0, 0) == msg.to))
                 & (msg.ttl > 0)
