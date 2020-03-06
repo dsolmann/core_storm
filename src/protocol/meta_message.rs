@@ -1,10 +1,10 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct MetaMessage {
     m_type: MetaMethods,
-    payload: Vec<u8>
+    payload: Vec<u8>,
 }
 impl MetaMessage {
     pub fn encode(&self) -> Vec<u8> {
@@ -17,11 +17,10 @@ impl MetaMessage {
     pub fn ping() -> MetaMessage {
         MetaMessage {
             m_type: MetaMethods::Ping,
-            payload: vec![]
+            payload: vec![],
         }
     }
 }
-
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, Copy)]
 pub enum MetaMethods {
@@ -29,5 +28,5 @@ pub enum MetaMethods {
     GetTime,
     NeighbourSearch,
     AprDistance,
-    TraceRoute
+    TraceRoute,
 }

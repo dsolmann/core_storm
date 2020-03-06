@@ -1,25 +1,32 @@
-use serde::{Serialize, Deserialize};
-use std::hash::{Hash, Hasher};
-use std::collections::hash_map::DefaultHasher;
-use uuid::Uuid;
 use bincode;
+use serde::{Deserialize, Serialize};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use uuid::Uuid;
+use rand::prelude::*;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, Copy)]
-pub struct Addr (pub u16, pub u16, pub u16, pub u16);
+pub struct Addr(pub u16, pub u16, pub u16, pub u16);
+
+impl Addr {
+    pub fn random() -> Addr {
+        Addr (random(), random(), random(), random())
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, Copy)]
 pub enum UpperProto {
     OneWay,
     ConnProto,
     RelSavNet,
-    MetaProto
+    MetaProto,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, Copy)]
 pub enum MsgType {
     Broadcast,
     RadiusBroadcast,
-    UnicastL
+    UnicastL,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
@@ -32,11 +39,11 @@ pub struct Message {
     pub msg_type: MsgType,
     pub to: Addr,
     pub hash: u64,
-    pub id: Uuid
+    pub id: Uuid,
 }
 
 impl Message {
-    pub fn hash_it(hashable: Vec<u8>) -> u64{
+    pub fn hash_it(hashable: Vec<u8>) -> u64 {
         let mut hasher = DefaultHasher::new();
         hashable.hash(&mut hasher);
         hasher.finish()
@@ -52,7 +59,7 @@ impl Message {
             data: data.clone(),
             to: Addr(0, 0, 0, 0),
             hash: Message::hash_it(data.clone()),
-            id: Uuid::new_v4()
+            id: Uuid::new_v4(),
         }
     }
     pub fn encode(&self) -> Vec<u8> {
@@ -62,4 +69,3 @@ impl Message {
         bincode::deserialize(data).unwrap()
     }
 }
-

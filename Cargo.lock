@@ -45,6 +45,7 @@ dependencies = [
  "crossbeam-channel",
  "crossbeam-queue",
  "crossbeam-utils",
+ "rand",
  "serde",
  "twox-hash",
  "uuid",

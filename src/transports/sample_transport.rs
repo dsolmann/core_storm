@@ -1,15 +1,15 @@
-use crate::meta_message::MetaMessage;
-use crate::protocol::{UpperProto, Message, Addr, MsgType};
-use uuid::Uuid;
+use crate::protocol::MetaMessage;
+use crate::protocol::{Addr, Message, MsgType, UpperProto};
+use crossbeam_queue::ArrayQueue;
 use std::thread::sleep;
 use std::time::Duration;
-use crossbeam_queue::SegQueue;
+use uuid::Uuid;
 
-pub fn sample_transport(output_queue: &SegQueue<Message>) {
+pub fn sample_transport(output_queue: &ArrayQueue<Message>, addr: Addr) {
     loop {
         let d = MetaMessage::ping().encode();
-        output_queue.push(
-            Message {
+        output_queue
+            .push(Message {
                 sender: Option::from(Addr(0xDE, 0xAD, 0xBE, 0xEF)),
                 radius: None,
                 u_proto: UpperProto::MetaProto,
@@ -17,12 +17,12 @@ pub fn sample_transport(output_queue: &SegQueue<Message>) {
                 id: Uuid::new_v4(),
                 msg_type: MsgType::UnicastL,
                 data: d.clone(),
-                to: Addr(0xDE, 0xAD, 0xBE, 0xEF),
-                hash: Message::hash_it(d.clone())
-            }
-        );
+                to: addr,
+                hash: Message::hash_it(d.clone()),
+            })
+            .unwrap();
 
-        // sleep(Duration::from_secs_f32(0.1));
+        sleep(Duration::from_secs_f32(1.));
         // println!("SNT");
     }
 }
