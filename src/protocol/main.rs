@@ -1,16 +1,15 @@
-use bincode;
+use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use uuid::Uuid;
-use rand::prelude::*;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, Copy)]
 pub struct Addr(pub u16, pub u16, pub u16, pub u16);
 
 impl Addr {
     pub fn random() -> Addr {
-        Addr (random(), random(), random(), random())
+        Addr(random(), random(), random(), random())
     }
 }
 
@@ -58,14 +57,14 @@ impl Message {
             msg_type: MsgType::Broadcast,
             data: data.clone(),
             to: Addr(0, 0, 0, 0),
-            hash: Message::hash_it(data.clone()),
+            hash: Message::hash_it(data),
             id: Uuid::new_v4(),
         }
     }
     pub fn encode(&self) -> Vec<u8> {
         bincode::serialize(&self).unwrap()
     }
-    pub fn from_vec_u8(data: &Vec<u8>) -> Message {
+    pub fn from_bytes(data: &[u8]) -> Message {
         bincode::deserialize(data).unwrap()
     }
 }

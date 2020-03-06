@@ -1,5 +1,3 @@
-use crate::middlewares::direct_middleware;
-use crate::protocol::MetaMessage;
 use crate::protocol::{Addr, Message, MsgType, UpperProto};
 use crate::transports::sample_transport;
 use crossbeam_queue::{ArrayQueue, PopError, PushError};
@@ -17,10 +15,10 @@ pub struct InDispatcher {
 }
 
 impl InDispatcher {
-    pub fn new() -> InDispatcher {
+    pub fn new(addr: Addr) -> InDispatcher {
         InDispatcher {
             passed_pkt: vec![],
-            addr: Addr(0xDE, 0xAD, 0xBE, 0xEF),
+            addr,
             counter: 0,
             registered_callbacks: Default::default(),
         }
@@ -36,21 +34,21 @@ impl InDispatcher {
         loop {
             // println!("{:#?}", receiver);
             let mut msg = match input_queue.pop() {
-                Ok(Message) => Message,
+                Ok(message) => message,
                 _ => continue,
             };
             let m_id = &msg.id;
             self.counter += 1;
             msg.ttl -= 1;
-            if !self.passed_pkt.contains(*&m_id)
+            if !self.passed_pkt.contains(m_id)
                 & ((self.addr == msg.to) | (Addr(0, 0, 0, 0) == msg.to))
                 & (msg.ttl > 0)
             {
                 if !self.registered_callbacks.contains_key(&msg.u_proto) {
-                    self.passed_pkt.push(*&msg.id);
+                    self.passed_pkt.push(msg.id);
                     relay_queue.push(msg).unwrap();
                 } else {
-                    self.passed_pkt.push(*&msg.id);
+                    self.passed_pkt.push(msg.id);
                     let func = self.registered_callbacks[&msg.u_proto];
                     thread::spawn(move || func(&msg));
                     continue;

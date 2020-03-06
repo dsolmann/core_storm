@@ -1,10 +1,9 @@
-use bincode;
 use crossbeam_queue::ArrayQueue;
+use log::{debug, error, info, trace, warn};
 use std::hash::{Hash, Hasher};
 use std::option;
 use std::sync::Arc;
 use std::thread;
-use log::{debug, error, info, trace, warn};
 
 use crate::dispatcher::InDispatcher;
 use crate::middlewares::direct_middleware;
@@ -28,7 +27,7 @@ impl CoreStorm {
     pub fn new(addr: Addr, threads_per_proc: usize, queue_capacity: usize) -> CoreStorm {
         CoreStorm {
             input_queue: Arc::from(ArrayQueue::new(queue_capacity)),
-            input_dispatcher_queue:Arc::from(ArrayQueue::new(queue_capacity)),
+            input_dispatcher_queue: Arc::from(ArrayQueue::new(queue_capacity)),
             output_middleware_queue: Arc::from(ArrayQueue::new(queue_capacity)),
             output_queue: Arc::from(ArrayQueue::new(queue_capacity)),
             // thread_pool: vec![],
@@ -36,7 +35,7 @@ impl CoreStorm {
             address: addr,
             pre_in_middleware: direct_middleware,
             pre_out_middleware: direct_middleware,
-            in_dispatcher: InDispatcher::new(),
+            in_dispatcher: InDispatcher::new(addr),
         }
     }
 
@@ -78,7 +77,7 @@ impl CoreStorm {
     }
 
     pub fn get_address(&self) -> Addr {
-        self.address.clone()
+        self.address
     }
 
     pub fn register_handler(&mut self, protocol: UpperProto, handler_func: fn(&Message)) {

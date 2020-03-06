@@ -10,7 +10,7 @@ impl MetaMessage {
     pub fn encode(&self) -> Vec<u8> {
         bincode::serialize(&self).unwrap()
     }
-    pub fn from_vec_u8(data: &Vec<u8>) -> MetaMessage {
+    pub fn from_bytes(data: &[u8]) -> MetaMessage {
         bincode::deserialize(data).unwrap()
     }
 
