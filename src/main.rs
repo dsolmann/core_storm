@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 mod dispatcher;
 mod handlers;
 mod middlewares;

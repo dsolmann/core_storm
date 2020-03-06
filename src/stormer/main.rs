@@ -89,4 +89,9 @@ impl CoreStorm {
         self.input_queue.push(msg).unwrap();
         debug!("Message received.")
     }
+
+    pub fn send_message(&mut self, msg: Message) {
+        self.output_middleware_queue.push(msg).unwrap();
+        debug!("Message sent.")
+    }
 }
