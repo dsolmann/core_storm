@@ -83,7 +83,7 @@ impl CoreStorm {
 
     pub fn register_handler(&mut self, protocol: UpperProto, handler_func: fn(&Message)) {
         self.in_dispatcher.register_callback(protocol, handler_func);
-        info!("Assigned handler to {}.", protocol);
+        info!("Assigned handler to {:?}.", protocol);
     }
 
     pub fn accept_message(&mut self, msg: Message) {
