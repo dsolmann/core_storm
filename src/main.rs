@@ -1,5 +1,3 @@
-use stormer::*;
-
 mod dispatcher;
 mod middlewares;
 mod protocol;
@@ -7,7 +5,7 @@ mod stormer;
 mod transports;
 
 use crate::stormer::CoreStorm;
-use protocol::Addr;
+use crate::protocol::Addr;
 use crate::protocol::UpperProto;
 use crate::transports::sample_transport;
 
