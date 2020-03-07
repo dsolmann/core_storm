@@ -1,9 +1,11 @@
 use crate::handlers::meta::{MetaMessage, MetaMethods};
 use crate::protocol::{Message, UpperProto, Addr, MsgType};
+use log::{*};
 use std::option::Option;
 
-fn meta_handler(msg: &Message, self_addr: Addr) -> Option<Message> {
+pub fn meta_handler(msg: &Message, self_addr: Addr) -> Option<Message> {
     let meta_msg = MetaMessage::from_bytes(&msg.data);
+    debug!("Received {:?} message from {:?}", meta_msg.m_type, msg.sender);
     if meta_msg.m_type == MetaMethods::EchoRequest {
         let meta_resp = MetaMessage { m_type: MetaMethods::EchoResponse, payload: meta_msg.payload }.encode();
         Option::from(

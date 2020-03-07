@@ -5,10 +5,13 @@ use std::option;
 use std::sync::Arc;
 use std::thread;
 
-use crate::dispatcher::InDispatcher;
+use crate::dispatcher::{InDispatcher, OutDispatcher};
 use crate::middlewares::direct_middleware;
 use crate::protocol::{Addr, Message, MsgType, UpperProto};
-use crate::transports::sample_transport;
+use crate::transports::sample_looping_transport;
+use crate::handlers::meta::{meta_handler, MetaMessage};
+use rand::random;
+use uuid::Uuid;
 
 pub struct CoreStorm {
     pub input_queue: Arc<ArrayQueue<Message>>,
@@ -21,6 +24,7 @@ pub struct CoreStorm {
     pre_in_middleware: fn(&ArrayQueue<Message>, &ArrayQueue<Message>),
     pre_out_middleware: fn(&ArrayQueue<Message>, &ArrayQueue<Message>),
     in_dispatcher: InDispatcher,
+    out_dispatcher: OutDispatcher
 }
 
 impl CoreStorm {
@@ -36,6 +40,7 @@ impl CoreStorm {
             pre_in_middleware: direct_middleware,
             pre_out_middleware: direct_middleware,
             in_dispatcher: InDispatcher::new(addr),
+            out_dispatcher: OutDispatcher::new(addr)
         }
     }
 
@@ -49,15 +54,47 @@ impl CoreStorm {
         info!("Output middleware set.")
     }
 
+    pub fn ping(&mut self, addr: Addr, pkt_num: usize) {
+        let ping_id: [u8; 8] = random();
+        let msg = MetaMessage::ping(&ping_id).encode();
+        for _ in 0..pkt_num {
+            self.send_message(Message {
+                sender: Option::from(self.address),
+                radius: None,
+                ttl: 64,
+                data: msg.clone(),
+                u_proto: UpperProto::MetaProto,
+                msg_type: MsgType::Broadcast,
+                to: addr,
+                hash: Message::hash_it(msg.clone()),
+                id: Uuid::new_v4()
+            })
+        }
+    }
+
+    pub fn init_default_handlers(&mut self) {
+        self.register_handler(
+            UpperProto::MetaProto,
+            |msg, addr| meta_handler(msg, addr)
+        );
+    }
+
     pub fn start(&mut self) {
         info!("Starting CoreStorm's instance.");
         for _ in 0..self.max_workers_per_iproc {
+            // Initializing Output Dispatcher
+            let o_d_q = Arc::clone(&self.output_queue);
+            let i_m_q = Arc::clone(&self.input_queue);
+            let mut d = self.out_dispatcher.clone();
+            thread::spawn(move || d.dispatch(&o_d_q, &i_m_q));
+            debug!("out_dispatcher connected to loopback and output queues.");
+
             // Initializing Output Middleware
             let o_m_q = Arc::clone(&self.output_middleware_queue);
             let o_d_q = Arc::clone(&self.output_queue);
             let mw_func = self.pre_out_middleware;
             thread::spawn(move || mw_func(&o_m_q, &o_d_q));
-            info!("Intermediate output queue connected to final queue.");
+            debug!("Intermediate output queue connected to final queue.");
 
             // Initializing Input Dispatcher
             let mut d = self.in_dispatcher.clone();
@@ -65,15 +102,16 @@ impl CoreStorm {
             let out_mw_q = Arc::clone(&self.output_middleware_queue);
 
             thread::spawn(move || d.dispatch(&inp_dis_q, &out_mw_q));
-            info!("in_dispatcher connected to intermediate output queue.");
+            debug!("in_dispatcher connected to intermediate output queue.");
 
             // Initializing Input Middleware
             let i_m_q = Arc::clone(&self.input_queue);
             let i_d_q = Arc::clone(&self.input_dispatcher_queue);
             let mw_func = self.pre_in_middleware;
             thread::spawn(move || mw_func(&i_m_q, &i_d_q));
-            info!("Input Queue connected to in_dispatcher input queue.");
+            debug!("Input Queue connected to in_dispatcher input queue.");
         }
+        info!("Started! Our own address is {:?}", self.address);
     }
 
     pub fn get_address(&self) -> Addr {

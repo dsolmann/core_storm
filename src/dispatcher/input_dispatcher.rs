@@ -1,11 +1,12 @@
 use crate::protocol::{Addr, Message, MsgType, UpperProto};
-use crate::transports::sample_transport;
+use crate::transports::sample_looping_transport;
 use crossbeam_queue::{ArrayQueue, PopError, PushError};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use uuid::Uuid;
 use std::option::Option;
 use std::sync::Arc;
+use log::{info, debug};
 
 #[derive(Clone)]
 pub struct InDispatcher {
@@ -38,6 +39,7 @@ impl InDispatcher {
                 Ok(message) => message,
                 _ => continue,
             };
+            debug!("Message received.");
             let m_id = &msg.id;
             self.counter += 1;
             msg.ttl -= 1;
@@ -45,10 +47,13 @@ impl InDispatcher {
                 & ((self.addr == msg.to) | (Addr(0, 0, 0, 0) == msg.to))
                 & (msg.ttl > 0)
             {
+                debug!("Message adressed to us.");
                 if !self.registered_callbacks.contains_key(&msg.u_proto) {
                     self.passed_pkt.push(msg.id);
-                    relay_queue.push(msg).unwrap();
+                    // TODO: Make an undefined handler
+                    debug!("No handlers bind for {:?}. Skipping message for now.", &msg.u_proto);
                 } else {
+                    debug!("Moving message to {:?} handler.", &msg.u_proto);
                     self.passed_pkt.push(msg.id);
                     let func = self.registered_callbacks[&msg.u_proto];
                     match func(&msg, self.addr) {
@@ -57,6 +62,10 @@ impl InDispatcher {
                     };
                     continue;
                 }
+            } else {
+                debug!("Message is not for us.");
+                debug!("Moving it to relay queue.");
+                relay_queue.push(msg).unwrap();
             }
         }
     }

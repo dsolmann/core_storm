@@ -15,10 +15,10 @@ impl MetaMessage {
         bincode::deserialize(data).unwrap()
     }
 
-    pub fn ping() -> MetaMessage {
+    pub fn ping(payload: &[u8]) -> MetaMessage {
         MetaMessage {
             m_type: MetaMethods::EchoRequest,
-            payload: vec![0xF; 16],
+            payload: Vec::from(payload),
         }
     }
 }
