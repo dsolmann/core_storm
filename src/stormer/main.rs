@@ -80,7 +80,7 @@ impl CoreStorm {
         self.address
     }
 
-    pub fn register_handler(&mut self, protocol: UpperProto, handler_func: fn(&Message)) {
+    pub fn register_handler(&mut self, protocol: UpperProto, handler_func: fn(&Message, Addr) -> Option<Message>) {
         self.in_dispatcher.register_callback(protocol, handler_func);
         info!("Assigned handler to {:?}.", protocol);
     }

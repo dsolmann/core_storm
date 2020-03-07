@@ -1,4 +1,4 @@
-use crate::protocol::MetaMessage;
+use crate::handlers::meta::MetaMessage;
 use crate::protocol::{Addr, Message, MsgType, UpperProto};
 use crossbeam_queue::ArrayQueue;
 use std::thread::sleep;

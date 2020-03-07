@@ -6,6 +6,7 @@ pub struct MetaMessage {
     m_type: MetaMethods,
     payload: Vec<u8>,
 }
+
 impl MetaMessage {
     pub fn encode(&self) -> Vec<u8> {
         bincode::serialize(&self).unwrap()
@@ -17,7 +18,7 @@ impl MetaMessage {
     pub fn ping() -> MetaMessage {
         MetaMessage {
             m_type: MetaMethods::Ping,
-            payload: vec![],
+            payload: vec![0xF; 16],
         }
     }
 }
@@ -26,7 +27,5 @@ impl MetaMessage {
 pub enum MetaMethods {
     Ping,
     GetTime,
-    NeighbourSearch,
-    AprDistance,
-    TraceRoute,
+    TraceRoute
 }

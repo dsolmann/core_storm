@@ -5,13 +5,15 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::thread;
 use uuid::Uuid;
+use std::option::Option;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct InDispatcher {
     passed_pkt: Vec<Uuid>,
     addr: Addr,
     counter: u64,
-    registered_callbacks: HashMap<UpperProto, fn(&Message)>,
+    registered_callbacks: HashMap<UpperProto, fn(&Message, Addr) -> Option<Message>>,
 }
 
 impl InDispatcher {
@@ -23,7 +25,7 @@ impl InDispatcher {
             registered_callbacks: Default::default(),
         }
     }
-    pub fn register_callback(&mut self, proto: UpperProto, func: fn(&Message)) {
+    pub fn register_callback(&mut self, proto: UpperProto, func: fn(&Message, Addr) -> Option<Message>) {
         self.registered_callbacks.insert(proto, func);
     }
     pub fn dispatch(
@@ -50,7 +52,10 @@ impl InDispatcher {
                 } else {
                     self.passed_pkt.push(msg.id);
                     let func = self.registered_callbacks[&msg.u_proto];
-                    thread::spawn(move || func(&msg));
+                    match func(&msg, self.addr) {
+                        Some(m) => {relay_queue.push(m).unwrap();}
+                        _ => {}
+                    };
                     continue;
                 }
             }
