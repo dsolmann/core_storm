@@ -3,8 +3,8 @@ use std::hash::{Hash, Hasher};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct MetaMessage {
-    m_type: MetaMethods,
-    payload: Vec<u8>,
+    pub m_type: MetaMethods,
+    pub payload: Vec<u8>,
 }
 
 impl MetaMessage {
@@ -17,7 +17,7 @@ impl MetaMessage {
 
     pub fn ping() -> MetaMessage {
         MetaMessage {
-            m_type: MetaMethods::Ping,
+            m_type: MetaMethods::EchoRequest,
             payload: vec![0xF; 16],
         }
     }
@@ -25,7 +25,8 @@ impl MetaMessage {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, Copy)]
 pub enum MetaMethods {
-    Ping,
+    EchoRequest,
+    EchoResponse,
     GetTime,
     TraceRoute
 }

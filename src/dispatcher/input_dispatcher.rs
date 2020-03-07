@@ -3,7 +3,6 @@ use crate::transports::sample_transport;
 use crossbeam_queue::{ArrayQueue, PopError, PushError};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
-use std::thread;
 use uuid::Uuid;
 use std::option::Option;
 use std::sync::Arc;
